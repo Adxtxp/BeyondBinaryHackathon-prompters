@@ -96,10 +96,20 @@ mode = st.radio(
     horizontal=True
 )
 
+# Re-trigger feedback on mode change (demo UX fix)
+if "last_mode" not in st.session_state:
+    st.session_state.last_mode = mode
+
+if mode != st.session_state.last_mode:
+    if st.session_state.label != "clear":
+        trigger_feedback(st.session_state.label, mode)
+    st.session_state.last_mode = mode
+
 # Demo mode pre-sets
 if demo_mode:
     mock_mode = True
     st.session_state.demo_mode = True
+    st.session_state["mock_mode"] = True      # sync for vision.py
     st.info("🎬 Demo Mode Active - Using simulated detections")
     
     # Demo mode preset values - fixed to demonstrate obstacle detection
@@ -112,6 +122,8 @@ if demo_mode:
 else:
     mock_mode = st.checkbox("Mock Mode", value=False)
     st.session_state.demo_mode = False
+    st.session_state["mock_mode"] = mock_mode  # sync for vision.py
+    st.session_state._auto_mock = False         # clear auto-fallback flag
 
 # --- Mock Detection Controls (only shown when mock mode is on) ---
 if mock_mode and not demo_mode:
@@ -153,7 +165,7 @@ with left:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_placeholder.image(frame, channels="RGB", use_container_width=True)
 
-                if not mock_mode:
+                if not mock_mode and not demo_mode:
                     current_time = time.time()
                     if current_time - st.session_state.last_detection_time > 0.5:
                         result = analyze_frame(frame)
@@ -196,6 +208,33 @@ with right:
     
     if st.session_state.get("_auto_mock", False):
         st.warning("⚠️ Detection failed repeatedly — auto-switched to Mock Mode for stability.")
+    
+    # --- Visual Vibration Simulation ---
+    if mode in ("Vibration Only", "Sound + Vibration") and st.session_state.label != "clear":
+        st.markdown("""
+            <div style="
+                background-color: #222222;
+                border: 3px dashed #ff4444;
+                padding: 20px;
+                margin-top: 15px;
+                text-align: center;
+                font-size: 1.5rem;
+                font-weight: bold;
+                color: #ff4444;
+                border-radius: 10px;
+                animation: pulse 1s infinite;
+            ">
+                📳 VIBRATION ACTIVE
+            </div>
+
+            <style>
+            @keyframes pulse {
+                0% { opacity: 1; }
+                50% { opacity: 0.3; }
+                100% { opacity: 1; }
+            }
+            </style>
+        """, unsafe_allow_html=True)
 
 # Trigger feedback (sound + simulated vibration)
 if st.session_state.label != st.session_state.last_label:
