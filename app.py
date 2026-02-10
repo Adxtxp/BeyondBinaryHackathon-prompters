@@ -1,4 +1,7 @@
 import streamlit as st
+import cv2
+import numpy as np
+
 
 from modules.vision import analyze_frame
 from modules.feedback import trigger_feedback
@@ -11,17 +14,31 @@ st.set_page_config(
 
 st.title("Multimodal Assistive Obstacle Detection")
 
+# Initialize camera state
+if "camera_running" not in st.session_state:
+    st.session_state.camera_running = False
+
 # --- Layout ---
 left, right = st.columns([2, 1])
 
 with left:
     st.subheader("Camera View")
-    st.info("Phase 0/1: Camera feed will appear here soon.")
 
-with right:
-    st.subheader("Detection Status")
-    st.write("Obstacle: --")
-    st.write("Confidence: --")
+    frame_placeholder = st.empty()
+
+    if st.session_state.get("camera_running", False):
+        cap = cv2.VideoCapture(0)
+
+        if not cap.isOpened():
+            st.error("Unable to access camera.")
+        else:
+            ret, frame = cap.read()
+            if ret:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_placeholder.image(frame, channels="RGB", use_container_width=True)
+            cap.release()
+    else:
+        st.info("Camera is stopped.")
 
 st.divider()
 
@@ -32,6 +49,20 @@ mode = st.radio(
 )
 
 mock_mode = st.checkbox("Mock Mode", value=True)
+
+st.divider()
+
+st.subheader("Camera Controls")
+
+col_start, col_stop = st.columns(2)
+
+with col_start:
+    if st.button("Start Camera"):
+        st.session_state.camera_running = True
+
+with col_stop:
+    if st.button("Stop Camera"):
+        st.session_state.camera_running = False
 
 # --- Mock Detection Result (Phase 1 baseline) ---
 if mock_mode:
