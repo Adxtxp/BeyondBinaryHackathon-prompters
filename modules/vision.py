@@ -6,7 +6,13 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+import logging
+from typing import Any, Dict, List
+from collections import deque
+
+# Console logging for demo transparency
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(message)s")
+logger = logging.getLogger("vision")
 
 # Optional imports (kept safe). If missing, we still return valid output.
 try:
@@ -18,6 +24,12 @@ try:
     import cv2  # type: ignore
 except Exception:
     cv2 = None  # type: ignore
+
+# --- Confidence Smoothing & Anti-Flicker ---
+_label_history: deque = deque(maxlen=5)   # last 5 labels
+_conf_history: deque = deque(maxlen=5)    # last 5 confidence values
+_consecutive_failures: int = 0
+MAX_FAILURES_BEFORE_FALLBACK = 5
 
 
 # Internal helpers -------------------------------------------------------------
@@ -43,6 +55,48 @@ def _safe_return(label: Any, confidence: Any) -> Dict[str, Any]:
         return {"label": "clear", "confidence": 0.0}
 
     return {"label": lbl, "confidence": conf}
+
+
+def _smooth_result(label: str, confidence: float) -> Dict[str, Any]:
+    """Apply temporal smoothing to reduce flicker.
+    Uses majority-vote on last 5 labels and averages confidence."""
+    global _consecutive_failures
+    _consecutive_failures = 0  # reset on successful detection
+
+    _label_history.append(label)
+    _conf_history.append(confidence)
+
+    # Majority vote for label stability
+    if len(_label_history) >= 3:
+        from collections import Counter
+        vote = Counter(_label_history).most_common(1)[0][0]
+    else:
+        vote = label
+
+    # Average confidence smoothing
+    avg_conf = sum(_conf_history) / len(_conf_history) if _conf_history else confidence
+
+    logger.info(f"Detection: raw={label}({confidence:.2f}) -> smoothed={vote}({avg_conf:.2f})")
+    return _safe_return(vote, avg_conf)
+
+
+def _handle_failure() -> Dict[str, Any]:
+    """Track failures and auto-fallback to mock if too many consecutive."""
+    global _consecutive_failures
+    _consecutive_failures += 1
+    logger.warning(f"Detection failure #{_consecutive_failures}/{MAX_FAILURES_BEFORE_FALLBACK}")
+
+    if _consecutive_failures >= MAX_FAILURES_BEFORE_FALLBACK:
+        logger.warning("Too many failures — falling back to Mock Mode")
+        try:
+            import streamlit as st
+            st.session_state["mock_mode"] = True
+            st.session_state["_auto_mock"] = True
+        except Exception:
+            pass
+        return _safe_return("clear", 0.0)
+
+    return _safe_return("clear", 0.0)
 
 
 def _is_mock_mode() -> bool:
@@ -80,12 +134,14 @@ def analyze_frame(frame=None) -> dict:
     """
     # Mock mode OR no frame provided => safe mock output
     if _is_mock_mode() or frame is None:
+        logger.info("Mock mode active — returning simulated output")
         return _mock_output()
 
     # Real mode: simple heuristic. Never crash.
     try:
         if cv2 is None or np is None:
-            return _safe_return("clear", 0.0)
+            logger.warning("cv2/numpy not available")
+            return _handle_failure()
 
         img = frame
 
@@ -97,7 +153,8 @@ def analyze_frame(frame=None) -> dict:
                 return _safe_return("clear", 0.0)
 
         if img is None or getattr(img, "size", 0) == 0:
-            return _safe_return("clear", 0.0)
+            logger.warning("Empty or invalid frame")
+            return _handle_failure()
 
         # Convert to grayscale safely
         if len(img.shape) == 3:
@@ -128,13 +185,14 @@ def analyze_frame(frame=None) -> dict:
         if bottom_density > 0.085:
             label = "step" if bottom_density > 0.12 else "curb"
             conf = (bottom_density - 0.08) / 0.10
-            return _safe_return(label, conf)
+            return _smooth_result(label, conf)
 
         if center_density > 0.065:
             conf = (center_density - 0.06) / 0.10
-            return _safe_return("object", conf)
+            return _smooth_result("object", conf)
 
-        return _safe_return("clear", 0.0)
+        return _smooth_result("clear", 0.0)
 
-    except Exception:
-        return _safe_return("clear", 0.0)
+    except Exception as e:
+        logger.error(f"Detection exception: {e}")
+        return _handle_failure()

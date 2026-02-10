@@ -28,6 +28,8 @@ if "last_label" not in st.session_state:
     st.session_state.last_label = "clear"
 if "demo_mode" not in st.session_state:
     st.session_state.demo_mode = False
+if "_auto_mock" not in st.session_state:
+    st.session_state._auto_mock = False
 
 # --- Controls ---
 st.subheader("⚙️ Settings")
@@ -191,6 +193,9 @@ with right:
     
     if st.session_state.camera_running and not mock_mode:
         st.info("🔄 Analyzing environment...")
+    
+    if st.session_state.get("_auto_mock", False):
+        st.warning("⚠️ Detection failed repeatedly — auto-switched to Mock Mode for stability.")
 
 # Trigger feedback (sound + simulated vibration)
 if st.session_state.label != st.session_state.last_label:

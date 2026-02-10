@@ -22,3 +22,11 @@ We decouple "Detection" from "Feedback". The AI sees the world, but the *User* d
 3.  **Sound Only:**
     - *Best for:* Users with motor impairments sensitive to vibration.
     - *Feedback:* Clear, high-priority audio alerts.
+
+4.  **Elderly Users:**
+    - *Best for:* Older adults with declining vision, hearing, or mobility.
+    - *Why it helps:* Falls from curbs and steps are a leading cause of injury in the elderly. Our system provides early, multi-sensory warnings that are:
+      - **Loud and clear** (Sound mode with slower speech rate)
+      - **Haptic** (Vibration for those with hearing loss)
+      - **High contrast UI** and **Large Font** mode for caregivers or the user themselves
+    - *Use case:* An elderly person walking with a cane receives a vibration pulse 2 seconds before reaching a curb, giving them time to stop safely.
