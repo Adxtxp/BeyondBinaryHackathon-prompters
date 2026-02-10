@@ -26,18 +26,93 @@ if "last_detection_time" not in st.session_state:
     st.session_state.last_detection_time = 0
 if "last_label" not in st.session_state:
     st.session_state.last_label = "clear"
+if "demo_mode" not in st.session_state:
+    st.session_state.demo_mode = False
 
 # --- Controls ---
+st.subheader("⚙️ Settings")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    high_contrast = st.checkbox("🌓 High Contrast", help="Toggle high contrast mode for better visibility")
+    
+with col2:
+    large_font = st.checkbox("🔍 Large Font", help="Increase font size for better readability")
+    
+with col3:
+    demo_mode = st.checkbox("🎬 Demo Mode", value=st.session_state.demo_mode, help="One-tap demo with pre-configured settings")
+
+# Apply High Contrast CSS
+if high_contrast:
+    st.markdown("""
+        <style>
+            body {
+                background-color: #000000;
+                color: #FFFFFF;
+            }
+            .stApp {
+                background-color: #000000;
+            }
+            div[data-testid="stSidebar"] {
+                background-color: #111111;
+            }
+            h1, h2, h3, h4, h5, h6, p, span, label {
+                color: #FFFFFF !important;
+            }
+            .stButton>button {
+                background-color: #FFFF00;
+                color: #000000;
+                font-weight: bold;
+            }
+            .stCheckbox label {
+                color: #FFFFFF !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+# Apply Large Font CSS
+if large_font:
+    st.markdown("""
+        <style>
+            body, p, span, div, label {
+                font-size: 1.3rem !important;
+            }
+            h1 { font-size: 3rem !important; }
+            h2 { font-size: 2.5rem !important; }
+            h3 { font-size: 2rem !important; }
+            .stButton>button {
+                font-size: 1.5rem !important;
+                padding: 0.75rem 1.5rem !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
 mode = st.radio(
     "Accessibility Mode",
     ["Sound Only", "Vibration Only", "Sound + Vibration"],
     horizontal=True
 )
 
-mock_mode = st.checkbox("Mock Mode", value=True)
+# Demo mode pre-sets
+if demo_mode:
+    mock_mode = True
+    st.session_state.demo_mode = True
+    st.info("🎬 Demo Mode Active - Using simulated detections")
+    
+    # Demo mode preset values - fixed to demonstrate obstacle detection
+    label = "step"
+    confidence = 0.92
+    st.session_state.label = label
+    st.session_state.confidence = confidence
+    
+    st.caption("💡 Preset: Detecting a **STEP** with 92% confidence")
+else:
+    mock_mode = st.checkbox("Mock Mode", value=False)
+    st.session_state.demo_mode = False
 
 # --- Mock Detection Controls (only shown when mock mode is on) ---
-if mock_mode:
+if mock_mode and not demo_mode:
     label = st.selectbox("Mock Label", ["clear", "step", "curb", "object"])
     confidence = st.slider("Mock Confidence", 0.0, 1.0, 0.92, 0.01)
     st.session_state.label = label
@@ -92,23 +167,33 @@ with left:
 
 with right:
     st.subheader("Detection Status")
+    
+    # Clear color coding: Green → clear, Yellow → object, Red → step/curb
     if st.session_state.label == "clear":
-        st.success("CLEAR")
-    else:
-        st.error(st.session_state.label.upper())
+        st.markdown(
+            '<div style="background-color: #28a745; color: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">✅ CLEAR</div>',
+            unsafe_allow_html=True
+        )
+    elif st.session_state.label == "object":
+        st.markdown(
+            '<div style="background-color: #ffc107; color: black; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">⚠️ OBJECT</div>',
+            unsafe_allow_html=True
+        )
+    else:  # step or curb
+        st.markdown(
+            f'<div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">🚨 {st.session_state.label.upper()}</div>',
+            unsafe_allow_html=True
+        )
 
+    st.markdown("<br>", unsafe_allow_html=True)
     st.progress(int(st.session_state.confidence * 100))
     st.caption(f"Confidence: {format_confidence(st.session_state.confidence)}")
-
+    
     if st.session_state.camera_running and not mock_mode:
-        st.info("Analyzing environment...")
+        st.info("🔄 Analyzing environment...")
 
 # Trigger feedback (sound + simulated vibration)
 if st.session_state.label != st.session_state.last_label:
-    feedback = trigger_feedback(st.session_state.label, mode)
+    trigger_feedback(st.session_state.label, mode)
     st.session_state.last_label = st.session_state.label
-else:
-    feedback = {"pattern": []}
 
-if mode in ("Vibration Only", "Sound + Vibration") and st.session_state.label != "clear":
-    st.warning(f"Simulated vibration pattern (ms): {feedback['pattern']}")
