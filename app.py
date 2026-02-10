@@ -97,7 +97,11 @@ with right:
     else:
         st.error(st.session_state.label.upper())
 
-    st.write(f"Confidence: {format_confidence(st.session_state.confidence)}")
+    st.progress(int(st.session_state.confidence * 100))
+    st.caption(f"Confidence: {format_confidence(st.session_state.confidence)}")
+
+    if st.session_state.camera_running and not mock_mode:
+        st.info("Analyzing environment...")
 
 # Trigger feedback (sound + simulated vibration)
 if st.session_state.label != st.session_state.last_label:
