@@ -1,6 +1,7 @@
 import streamlit as st
 import cv2
 import numpy as np
+import time
 
 
 from modules.vision import analyze_frame
@@ -24,19 +25,33 @@ left, right = st.columns([2, 1])
 with left:
     st.subheader("Camera View")
 
+    col_start, col_stop = st.columns(2)
+
+    with col_start:
+        if st.button("Start Camera"):
+            st.session_state.camera_running = True
+
+    with col_stop:
+        if st.button("Stop Camera"):
+            st.session_state.camera_running = False
+
     frame_placeholder = st.empty()
 
-    if st.session_state.get("camera_running", False):
+    if st.session_state.camera_running:
         cap = cv2.VideoCapture(0)
 
-        if not cap.isOpened():
-            st.error("Unable to access camera.")
-        else:
+        while st.session_state.camera_running:
             ret, frame = cap.read()
-            if ret:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame_placeholder.image(frame, channels="RGB", use_container_width=True)
-            cap.release()
+            if not ret:
+                st.error("Failed to read frame.")
+                break
+
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_placeholder.image(frame, channels="RGB", use_container_width=True)
+
+            time.sleep(0.03)  # ~30 FPS safe delay
+
+        cap.release()
     else:
         st.info("Camera is stopped.")
 
@@ -49,20 +64,6 @@ mode = st.radio(
 )
 
 mock_mode = st.checkbox("Mock Mode", value=True)
-
-st.divider()
-
-st.subheader("Camera Controls")
-
-col_start, col_stop = st.columns(2)
-
-with col_start:
-    if st.button("Start Camera"):
-        st.session_state.camera_running = True
-
-with col_stop:
-    if st.button("Stop Camera"):
-        st.session_state.camera_running = False
 
 # --- Mock Detection Result (Phase 1 baseline) ---
 if mock_mode:
