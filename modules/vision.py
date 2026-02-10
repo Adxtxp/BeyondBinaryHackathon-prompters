@@ -66,8 +66,8 @@ def _smooth_result(label: str, confidence: float) -> Dict[str, Any]:
     _label_history.append(label)
     _conf_history.append(confidence)
 
-    # Majority vote for label stability
-    if len(_label_history) >= 3:
+    # Majority vote for label stability (activates after 2 frames)
+    if len(_label_history) >= 2:
         from collections import Counter
         vote = Counter(_label_history).most_common(1)[0][0]
     else:
@@ -76,7 +76,7 @@ def _smooth_result(label: str, confidence: float) -> Dict[str, Any]:
     # Average confidence smoothing
     avg_conf = sum(_conf_history) / len(_conf_history) if _conf_history else confidence
 
-    logger.info(f"Detection: raw={label}({confidence:.2f}) -> smoothed={vote}({avg_conf:.2f})")
+    logger.debug(f"Detection: raw={label}({confidence:.2f}) -> smoothed={vote}({avg_conf:.2f})")
     return _safe_return(vote, avg_conf)
 
 
@@ -150,7 +150,8 @@ def analyze_frame(frame=None) -> dict:
             try:
                 img = np.array(img)
             except Exception:
-                return _safe_return("clear", 0.0)
+                logger.warning("Failed to convert frame to numpy array")
+                return _handle_failure()
 
         if img is None or getattr(img, "size", 0) == 0:
             logger.warning("Empty or invalid frame")
