@@ -246,7 +246,7 @@ def analyze_frame(frame=None) -> dict:
         logger.info("Mock mode active — returning simulated output")
         return _mock_output()
 
-    # Real mode: simple heuristic. Never crash.
+    # Real mode: TFLite model inference. Never crash.
     try:
         if cv2 is None or np is None:
             logger.warning("cv2/numpy not available")
@@ -266,47 +266,24 @@ def analyze_frame(frame=None) -> dict:
             logger.warning("Empty or invalid frame")
             return _handle_failure()
 
-        # Convert to grayscale safely
-        if len(img.shape) == 3:
-            gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        else:
-            gray = img.copy()
-
-        gray = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(gray, 60, 160)
-
-        h, w = edges.shape[:2]
-
-        # Bottom strip: step/curb cues
-        bottom = edges[int(h * 0.65): h, :]
-        bottom_density = float(np.mean(bottom > 0))  # 0..1
-
-        # Center area: object cues
-        cy1, cy2 = int(h * 0.30), int(h * 0.85)
-        cx1, cx2 = int(w * 0.20), int(w * 0.80)
-        center = edges[cy1:cy2, cx1:cx2]
-        center_density = float(np.mean(center > 0))  # 0..1
-
-        # Reduce flicker slightly
-        bottom_density = round(bottom_density, 3)
-        center_density = round(center_density, 3)
-
-        print(f"Edge density: bottom={bottom_density}, center={center_density}")
-
-        # Conservative thresholds for demo safety
-        if bottom_density > 0.085:
-            label = "step" if bottom_density > 0.12 else "curb"
-            conf = (bottom_density - 0.08) / 0.10
-            print(f"Returning: {label}, confidence={conf}")
-            return _smooth_result(label, conf)
-
-        if center_density > 0.065:
-            conf = (center_density - 0.06) / 0.10
-            print(f"Returning: object, confidence={conf}")
-            return _smooth_result("object", conf)
-
-        print("Returning: clear, confidence=0.0")
-        return _smooth_result("clear", 0.0)
+        # Run TFLite model prediction
+        result = _predict(img)
+        
+        if result is None:
+            logger.warning("Model prediction failed")
+            return _handle_failure()
+        
+        label = result["label"]
+        confidence = result["confidence"]
+        
+        # Apply confidence threshold
+        if confidence < 0.6:
+            logger.debug(f"Low confidence ({confidence:.2f}) - treating as clear")
+            return _smooth_result("clear", 0.0)
+        
+        # High confidence - use predicted label
+        logger.debug(f"Prediction: {label} ({confidence:.2f})")
+        return _smooth_result(label, confidence)
 
     except Exception as e:
         logger.error(f"Detection exception: {e}")
