@@ -27,16 +27,24 @@ except Exception:
 
 # TensorFlow Lite imports
 try:
-    from tflite_runtime.interpreter import Interpreter  # type: ignore
+    import tensorflow as tf  # type: ignore
+    Interpreter = tf.lite.Interpreter
 except Exception:
+    tf = None  # type: ignore
     Interpreter = None  # type: ignore
-    logger.warning("tflite_runtime not available")
+    logger.warning("TensorFlow not available")
 
 # --- TFLite Model Loading ---
 _interpreter = None
 _labels = []
 _input_details = None
 _output_details = None
+
+# Label mapping: model labels → app labels
+MODEL_TO_APP = {
+    "0 no stairs": "clear",
+    "1 stairs": "step"
+}
 
 def _load_model():
     """Load TFLite model and labels at module import time."""
@@ -120,12 +128,22 @@ def _predict(frame):
         confidence = float(predictions[top_idx])
         
         if top_idx < len(_labels):
-            label = _labels[top_idx].lower()
+            predicted_label = _labels[top_idx].strip().lower()
         else:
-            label = "unknown"
+            predicted_label = "unknown"
         
-        logger.debug(f"TFLite prediction: {label} ({confidence:.2f})")
-        return {"label": label, "confidence": confidence}
+        # Debug prints
+        print("RAW:", output_data)
+        print("INDEX:", top_idx)
+        print("LABEL:", predicted_label)
+        print("CONF:", confidence)
+        
+        # Map model labels to app labels
+        app_label = MODEL_TO_APP.get(predicted_label, "clear")
+        print("APP LABEL:", app_label)
+        
+        logger.debug(f"TFLite prediction: {predicted_label} → {app_label} ({confidence:.2f})")
+        return {"label": app_label, "confidence": confidence}
         
     except Exception as e:
         logger.error(f"TFLite prediction failed: {e}")
