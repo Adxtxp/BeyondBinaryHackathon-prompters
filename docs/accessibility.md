@@ -9,7 +9,7 @@ Standard navigation apps rely heavily on **Audio** (Voiceover) or **Visuals** (M
 We decouple "Detection" from "Feedback". The AI sees the world, but the *User* decides how to experience it.
 
 ### Modes
-1.  **Sound + Vibration (Default):**
+1.  **Sound + Vibration:**
     - *Best for:* Visually Impaired users.
     - *Feedback:* Spoken alerts ("Step Ahead") + Haptic Pulse.
     
@@ -19,7 +19,7 @@ We decouple "Detection" from "Feedback". The AI sees the world, but the *User* d
     - *Pattern 1 (Step):* Short-Short-Long (.._)
     - *Pattern 2 (Obstacle):* Heavy Buzz (___)
 
-3.  **Sound Only:**
+3.  **Sound Only (Default):**
     - *Best for:* Users with motor impairments sensitive to vibration.
     - *Feedback:* Clear, high-priority audio alerts.
 
@@ -30,3 +30,8 @@ We decouple "Detection" from "Feedback". The AI sees the world, but the *User* d
       - **Haptic** (Vibration for those with hearing loss)
       - **High contrast UI** and **Large Font** mode for caregivers or the user themselves
     - *Use case:* An elderly person walking with a cane receives a vibration pulse 2 seconds before reaching a curb, giving them time to stop safely.
+
+5. **UI Accessibility**
+We implemented "Accessibility-First" design patterns directly in the interface:
+* **High Contrast Mode:** Switches to a pure Black/Yellow theme (WCAG AAA compliant colors) for users with Photophobia or low vision.
+* **Large Font Mode:** Instantly scales text by 130% for elderly users.

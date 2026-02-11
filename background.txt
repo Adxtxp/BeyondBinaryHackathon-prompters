@@ -1,0 +1,12 @@
+We live in a world of GPS. But while apps like Google Maps solve the Last Mile problem—getting you to the right address—they fail at the Last Meter. They don't warn you about the broken curb, the construction cone, or the silent electric scooter in your path. That is the gap we fill." 
+According to the World Health Organization in 2026, at least 2.2 billion people globally live with near or distance vision impairment. 
+At the same time, falls are the second leading cause of unintentional injury deaths worldwide, resulting in approximately 684,000 fatalities every year. An additional 37.3 million falls are severe enough to require medical attention.
+When we connect these two realities — widespread vision impairment and the high global burden of fall-related injuries — it becomes clear that this is not just a health issue, but a systemic safety gap.
+That is why we identified this as a critical problem to address, and our solution is designed specifically to bridge that gap.
+For our obstacle detection model, we trained it on 88 images of stairs and 88 images of non-stair environments. We intentionally included a variety of conditions — different lighting environments, indoor and outdoor staircases, varying camera angles, different stair materials, and different background clutter.
+For the non-stair class, we included hallways, flat pavements, tiled floors, and textured surfaces that might visually resemble stairs.
+This diversity helps the model to be more robust to real-world variation.
+
+This allowed the system to learn the visual differences between hazardous elevation changes and safe walking paths.
+At a high level, our model continuously analyzes the live camera feed to determine whether there is a potential obstacle directly ahead.
+The system immediately alerts the user in real time — helping them react early and prevent potential injuries.
