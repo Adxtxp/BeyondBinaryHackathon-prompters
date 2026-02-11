@@ -182,16 +182,21 @@ def analyze_frame(frame=None) -> dict:
         bottom_density = round(bottom_density, 3)
         center_density = round(center_density, 3)
 
+        print(f"Edge density: bottom={bottom_density}, center={center_density}")
+
         # Conservative thresholds for demo safety
         if bottom_density > 0.085:
             label = "step" if bottom_density > 0.12 else "curb"
             conf = (bottom_density - 0.08) / 0.10
+            print(f"Returning: {label}, confidence={conf}")
             return _smooth_result(label, conf)
 
         if center_density > 0.065:
             conf = (center_density - 0.06) / 0.10
+            print(f"Returning: object, confidence={conf}")
             return _smooth_result("object", conf)
 
+        print("Returning: clear, confidence=0.0")
         return _smooth_result("clear", 0.0)
 
     except Exception as e:

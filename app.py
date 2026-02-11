@@ -168,6 +168,7 @@ with left:
                 if not mock_mode and not demo_mode:
                     current_time = time.time()
                     if current_time - st.session_state.last_detection_time > 0.5:
+                        print("ANALYZE CALLED")
                         result = analyze_frame(frame)
                         st.session_state.label = result["label"]
                         st.session_state.confidence = result["confidence"]
@@ -202,6 +203,11 @@ with right:
     st.markdown("<br>", unsafe_allow_html=True)
     st.progress(int(st.session_state.confidence * 100))
     st.caption(f"Confidence: {format_confidence(st.session_state.confidence)}")
+    
+    print("camera_running:", st.session_state.camera_running)
+    print("mock_mode:", mock_mode)
+    print("demo_mode:", demo_mode)
+    print("confidence:", st.session_state.confidence)
     
     if st.session_state.camera_running and not mock_mode:
         st.info("🔄 Analyzing environment...")
