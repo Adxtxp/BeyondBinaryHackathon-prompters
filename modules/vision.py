@@ -115,8 +115,8 @@ def _is_mock_mode() -> bool:
 def _mock_output() -> Dict[str, Any]:
     try:
         import streamlit as st
-        lbl = st.session_state.get("mock_label", "clear")
-        conf = st.session_state.get("mock_confidence", 0.0)
+        lbl = st.session_state.get("label", "clear")
+        conf = st.session_state.get("confidence", 0.0)
         return _safe_return(lbl, conf)
     except Exception:
         return _safe_return("clear", 0.0)
@@ -159,7 +159,7 @@ def analyze_frame(frame=None) -> dict:
 
         # Convert to grayscale safely
         if len(img.shape) == 3:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         else:
             gray = img.copy()
 
