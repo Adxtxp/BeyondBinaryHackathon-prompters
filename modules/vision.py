@@ -46,6 +46,11 @@ MODEL_TO_APP = {
     "1 stairs": "step"
 }
 
+# Shared result container for thread-safe communication with WebRTC callback
+latest_result = {"label": "clear", "confidence": 0.0}
+_last_detection_time = 0
+_detection_throttle = 0.5  # seconds between detections
+
 def _load_model():
     """Load TFLite model and labels at module import time."""
     global _interpreter, _labels, _input_details, _output_details
@@ -132,15 +137,12 @@ def _predict(frame):
         else:
             predicted_label = "unknown"
         
-        # Debug prints
-        print("RAW:", output_data)
-        print("INDEX:", top_idx)
-        print("LABEL:", predicted_label)
-        print("CONF:", confidence)
-        
         # Map model labels to app labels
         app_label = MODEL_TO_APP.get(predicted_label, "clear")
-        print("APP LABEL:", app_label)
+        
+        # Debug: only log when not clear or above threshold
+        if app_label != "clear" and confidence > 0.6:
+            print(f"DETECTION: {predicted_label} → {app_label} (conf: {confidence:.2f})")
         
         logger.debug(f"TFLite prediction: {predicted_label} → {app_label} ({confidence:.2f})")
         return {"label": app_label, "confidence": confidence}

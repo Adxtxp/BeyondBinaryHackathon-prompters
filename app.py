@@ -152,72 +152,107 @@ with left:
 
     frame_placeholder = st.empty()
 
-    if st.session_state.camera_running:
-        cap = cv2.VideoCapture(0)
-
-        try:
-            while st.session_state.camera_running:
-                ret, frame = cap.read()
-                if not ret:
-                    st.error("Failed to read frame.")
-                    break
-
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame_placeholder.image(frame, channels="RGB", width="stretch")
-
-                if not mock_mode and not demo_mode:
-                    current_time = time.time()
-                    if current_time - st.session_state.last_detection_time > 0.5:
-                        print("ANALYZE CALLED")
-                        result = analyze_frame(frame)
-                        st.session_state.label = result["label"]
-                        st.session_state.confidence = result["confidence"]
-                        st.session_state.last_detection_time = current_time
-
-                time.sleep(0.03)  # ~30 FPS safe delay
-        finally:
-            cap.release()
-    else:
-        st.info("Camera is stopped.")
-
 with right:
     st.subheader("Detection Status")
+    status_placeholder = st.empty()
+    st.markdown("<br>", unsafe_allow_html=True)
+    progress_placeholder = st.empty()
+    confidence_placeholder = st.empty()
+    info_placeholder = st.empty()
+
+# Camera loop with live updates
+if st.session_state.camera_running:
+    cap = cv2.VideoCapture(0)
+
+    try:
+        while st.session_state.camera_running:
+            ret, frame = cap.read()
+            if not ret:
+                frame_placeholder.error("Failed to read frame.")
+                break
+
+            # Convert and display frame
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+
+            # Run detection
+            if not mock_mode and not demo_mode:
+                current_time = time.time()
+                if current_time - st.session_state.last_detection_time > 0.5:
+                    result = analyze_frame(frame_rgb)
+                    label = result["label"]
+                    confidence = result["confidence"]
+                    st.session_state.label = label
+                    st.session_state.confidence = confidence
+                    st.session_state.last_detection_time = current_time
+                    
+                    # Trigger feedback on label change
+                    if label != st.session_state.last_label:
+                        trigger_feedback(label, mode)
+                        st.session_state.last_label = label
+            else:
+                label = st.session_state.label
+                confidence = st.session_state.confidence
+
+            # Update status display
+            if label == "clear":
+                status_placeholder.markdown(
+                    '<div style="background-color: #28a745; color: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">✅ CLEAR</div>',
+                    unsafe_allow_html=True
+                )
+            elif label == "object":
+                status_placeholder.markdown(
+                    '<div style="background-color: #ffc107; color: black; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">⚠️ OBJECT</div>',
+                    unsafe_allow_html=True
+                )
+            else:  # step or curb
+                status_placeholder.markdown(
+                    f'<div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">🚨 {label.upper()}</div>',
+                    unsafe_allow_html=True
+                )
+
+            # Update progress bar and confidence
+            progress_placeholder.progress(int(confidence * 100))
+            confidence_placeholder.caption(f"Confidence: {format_confidence(confidence)}")
+
+            # Show analyzing status
+            if not mock_mode and not demo_mode:
+                info_placeholder.info("🔄 Analyzing environment...")
+            else:
+                info_placeholder.empty()
+
+            time.sleep(0.03)  # ~30 FPS
+    finally:
+        cap.release()
+else:
+    frame_placeholder.info("Camera is stopped.")
     
-    # Clear color coding: Green → clear, Yellow → object, Red → step/curb
+    # Show static status when camera is off
     if st.session_state.label == "clear":
-        st.markdown(
+        status_placeholder.markdown(
             '<div style="background-color: #28a745; color: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">✅ CLEAR</div>',
             unsafe_allow_html=True
         )
     elif st.session_state.label == "object":
-        st.markdown(
+        status_placeholder.markdown(
             '<div style="background-color: #ffc107; color: black; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">⚠️ OBJECT</div>',
             unsafe_allow_html=True
         )
-    else:  # step or curb
-        st.markdown(
+    else:
+        status_placeholder.markdown(
             f'<div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 10px; text-align: center; font-size: 2rem; font-weight: bold;">🚨 {st.session_state.label.upper()}</div>',
             unsafe_allow_html=True
         )
+    
+    progress_placeholder.progress(int(st.session_state.confidence * 100))
+    confidence_placeholder.caption(f"Confidence: {format_confidence(st.session_state.confidence)}")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.progress(int(st.session_state.confidence * 100))
-    st.caption(f"Confidence: {format_confidence(st.session_state.confidence)}")
-    
-    print("camera_running:", st.session_state.camera_running)
-    print("mock_mode (local):", mock_mode)
-    print("st.session_state['mock_mode']:", st.session_state.get("mock_mode", False))
-    print("demo_mode:", demo_mode)
-    print("confidence:", st.session_state.confidence)
-    
-    if st.session_state.camera_running and not mock_mode:
-        st.info("🔄 Analyzing environment...")
-    
-    if st.session_state.get("_auto_mock", False):
-        st.warning("⚠️ Detection failed repeatedly — auto-switched to Mock Mode for stability.")
-    
-    # --- Visual Vibration Simulation ---
-    if mode in ("Vibration Only", "Sound + Vibration") and st.session_state.label != "clear":
+# Show auto-mock warning if triggered
+if st.session_state.get("_auto_mock", False):
+    st.warning("⚠️ Detection failed repeatedly — auto-switched to Mock Mode for stability.")
+
+# --- Visual Vibration Simulation ---
+if mode in ("Vibration Only", "Sound + Vibration") and st.session_state.label != "clear":
         st.markdown("""
             <div style="
                 background-color: #222222;
@@ -242,9 +277,3 @@ with right:
             }
             </style>
         """, unsafe_allow_html=True)
-
-# Trigger feedback (sound + simulated vibration)
-if st.session_state.label != st.session_state.last_label:
-    trigger_feedback(st.session_state.label, mode)
-    st.session_state.last_label = st.session_state.label
-
