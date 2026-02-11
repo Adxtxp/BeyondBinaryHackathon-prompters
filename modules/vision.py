@@ -25,6 +25,115 @@ try:
 except Exception:
     cv2 = None  # type: ignore
 
+# TensorFlow Lite imports
+try:
+    from tflite_runtime.interpreter import Interpreter  # type: ignore
+except Exception:
+    Interpreter = None  # type: ignore
+    logger.warning("tflite_runtime not available")
+
+# --- TFLite Model Loading ---
+_interpreter = None
+_labels = []
+_input_details = None
+_output_details = None
+
+def _load_model():
+    """Load TFLite model and labels at module import time."""
+    global _interpreter, _labels, _input_details, _output_details
+    
+    if Interpreter is None:
+        logger.warning("TFLite Interpreter not available - skipping model load")
+        return
+    
+    model_path = os.path.join(os.path.dirname(__file__), "..", "models", "model_unquant.tflite")
+    labels_path = os.path.join(os.path.dirname(__file__), "..", "models", "labels.txt")
+    
+    try:
+        # Load model
+        if not os.path.exists(model_path):
+            logger.warning(f"Model not found at: {model_path}")
+            return
+        
+        _interpreter = Interpreter(model_path=model_path)
+        _interpreter.allocate_tensors()
+        
+        _input_details = _interpreter.get_input_details()
+        _output_details = _interpreter.get_output_details()
+        
+        # Print input shape for debugging
+        input_shape = _input_details[0]['shape']
+        logger.info(f"TFLite model loaded successfully. Input shape: {input_shape}")
+        
+        # Load labels
+        if os.path.exists(labels_path):
+            with open(labels_path, 'r') as f:
+                _labels = [line.strip() for line in f.readlines()]
+            logger.info(f"Loaded {len(_labels)} labels: {_labels}")
+        else:
+            logger.warning(f"Labels file not found at: {labels_path}")
+            
+    except Exception as e:
+        logger.error(f"Failed to load TFLite model: {e}")
+        _interpreter = None
+
+def _predict(frame):
+    """
+    Run TFLite inference on a frame.
+    Returns: {"label": str, "confidence": float} or None if prediction fails.
+    """
+    global _interpreter, _labels, _input_details, _output_details
+    
+    if _interpreter is None or np is None or cv2 is None:
+        return None
+    
+    try:
+        # Get input shape (e.g., [1, 224, 224, 3])
+        input_shape = _input_details[0]['shape']
+        height, width = input_shape[1], input_shape[2]
+        
+        # Preprocess frame
+        if len(frame.shape) == 2:  # Grayscale
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        elif frame.shape[2] == 4:  # RGBA
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
+        
+        # Resize to model input size
+        resized = cv2.resize(frame, (width, height))
+        
+        # Normalize to [0, 1] if model expects float32
+        if _input_details[0]['dtype'] == np.float32:
+            input_data = np.expand_dims(resized.astype(np.float32) / 255.0, axis=0)
+        else:
+            input_data = np.expand_dims(resized, axis=0)
+        
+        # Run inference
+        _interpreter.set_tensor(_input_details[0]['index'], input_data)
+        _interpreter.invoke()
+        
+        # Get output
+        output_data = _interpreter.get_tensor(_output_details[0]['index'])
+        predictions = output_data[0]  # Remove batch dimension
+        
+        # Get top prediction
+        top_idx = np.argmax(predictions)
+        confidence = float(predictions[top_idx])
+        
+        if top_idx < len(_labels):
+            label = _labels[top_idx].lower()
+        else:
+            label = "unknown"
+        
+        logger.debug(f"TFLite prediction: {label} ({confidence:.2f})")
+        return {"label": label, "confidence": confidence}
+        
+    except Exception as e:
+        logger.error(f"TFLite prediction failed: {e}")
+        return None
+
+# Load model on module import
+_load_model()
+
 # --- Confidence Smoothing & Anti-Flicker ---
 _label_history: deque = deque(maxlen=5)   # last 5 labels
 _conf_history: deque = deque(maxlen=5)    # last 5 confidence values
