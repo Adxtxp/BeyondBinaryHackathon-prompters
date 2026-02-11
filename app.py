@@ -163,7 +163,7 @@ with left:
                     break
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame_placeholder.image(frame, channels="RGB", use_container_width=True)
+                frame_placeholder.image(frame, channels="RGB", width="stretch")
 
                 if not mock_mode and not demo_mode:
                     current_time = time.time()
@@ -205,7 +205,8 @@ with right:
     st.caption(f"Confidence: {format_confidence(st.session_state.confidence)}")
     
     print("camera_running:", st.session_state.camera_running)
-    print("mock_mode:", mock_mode)
+    print("mock_mode (local):", mock_mode)
+    print("st.session_state['mock_mode']:", st.session_state.get("mock_mode", False))
     print("demo_mode:", demo_mode)
     print("confidence:", st.session_state.confidence)
     
