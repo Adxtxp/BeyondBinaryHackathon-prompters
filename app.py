@@ -173,7 +173,7 @@ if st.session_state.camera_running:
 
             # Convert and display frame
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+            frame_placeholder.image(frame_rgb, channels="RGB", width='stretch')
 
             # Run detection
             if not mock_mode and not demo_mode:
@@ -182,12 +182,25 @@ if st.session_state.camera_running:
                     result = analyze_frame(frame_rgb)
                     label = result["label"]
                     confidence = result["confidence"]
+                    
+                    # Terminal output for debugging
+                    print("=" * 60)
+                    print(f"🔍 DETECTION RESULT:")
+                    print(f"   Label:      {label.upper()}")
+                    print(f"   Confidence: {confidence:.2%}")
+                    if label != "clear":
+                        print(f"   ⚠️  OBSTACLE DETECTED: {label.upper()}")
+                    else:
+                        print(f"   ✅ Path is clear")
+                    print("=" * 60)
+                    
                     st.session_state.label = label
                     st.session_state.confidence = confidence
                     st.session_state.last_detection_time = current_time
                     
                     # Trigger feedback on label change
                     if label != st.session_state.last_label:
+                        print(f"🔔 FEEDBACK TRIGGERED: {label.upper()} (changed from {st.session_state.last_label.upper()})")
                         trigger_feedback(label, mode)
                         st.session_state.last_label = label
             else:

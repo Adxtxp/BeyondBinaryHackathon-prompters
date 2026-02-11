@@ -82,6 +82,26 @@ def _load_model():
         if os.path.exists(labels_path):
             with open(labels_path, 'r') as f:
                 _labels = [line.strip() for line in f.readlines()]
+            
+            # AUDIT: Print full label details
+            print("\n" + "=" * 70)
+            print("🔍 LABEL MAPPING AUDIT")
+            print("=" * 70)
+            print(f"📄 Labels file: {labels_path}")
+            print(f"📊 Total labels loaded: {len(_labels)}")
+            print("\n🏷️  Label Index Mapping:")
+            for idx, label in enumerate(_labels):
+                print(f"   Index {idx}: '{label}'")
+            
+            print("\n🗺️  MODEL_TO_APP Mapping Dictionary:")
+            for model_label, app_label in MODEL_TO_APP.items():
+                print(f"   '{model_label}' → '{app_label}'")
+            
+            print("\n⚠️  IMPORTANT:")
+            print(f"   Index 0 = '{_labels[0] if _labels else 'N/A'}'")
+            print(f"   Index 1 = '{_labels[1] if len(_labels) > 1 else 'N/A'}'")
+            print("=" * 70 + "\n")
+            
             logger.info(f"Loaded {len(_labels)} labels: {_labels}")
         else:
             logger.warning(f"Labels file not found at: {labels_path}")
@@ -140,9 +160,14 @@ def _predict(frame):
         # Map model labels to app labels
         app_label = MODEL_TO_APP.get(predicted_label, "clear")
         
-        # Debug: only log when not clear or above threshold
-        if app_label != "clear" and confidence > 0.6:
-            print(f"DETECTION: {predicted_label} → {app_label} (conf: {confidence:.2f})")
+        # AUDIT: Detailed prediction breakdown
+        print(f"\n📊 PREDICTION BREAKDOWN:")
+        print(f"   Raw probabilities: {predictions}")
+        print(f"   Top index: {top_idx}")
+        print(f"   Label at index {top_idx}: '{_labels[top_idx]}' (from labels.txt)")
+        print(f"   After .strip().lower(): '{predicted_label}'")
+        print(f"   Mapped to app label: '{app_label}' (via MODEL_TO_APP)")
+        print(f"   Confidence: {confidence:.2%}")
         
         logger.debug(f"TFLite prediction: {predicted_label} → {app_label} ({confidence:.2f})")
         return {"label": app_label, "confidence": confidence}
